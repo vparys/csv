@@ -286,6 +286,9 @@
 
 
 
+        /**
+         * @return array
+         */
         public function toArray(): array
         {
             return [

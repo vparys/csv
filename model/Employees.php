@@ -98,6 +98,11 @@
             return $names;
         }
 
+
+
+        /**
+         * @return array
+         */
         public function getFullTableInArrayForm(): array
         {
             $table = [];
@@ -108,5 +113,24 @@
             }
             return $table;
         }
+
+
+
+        /**
+         * @param string $heading
+         * @return void
+         */
+        public function sortByHeading( string $heading ): void
+        {
+            $columnPosition = array_search( $heading, $this->getHeadings() );
+            if ( $columnPosition === false )
+            {
+                return;
+            }
+            uasort( $this->employees, function ( $a, $b ) use ( $columnPosition ) {
+                return array_values( $a->toArray() )[ $columnPosition ] <=> array_values( $b->toArray() )[ $columnPosition ];
+            } );
+        }
+
 
     }

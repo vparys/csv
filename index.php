@@ -4,16 +4,16 @@
     require 'model/Employees.php';
 
     const TABLE_COLUMN_IDS = array(
-        'name',
-        'surname',
-        'sex',
-        'address',
-        'city',
-        'zip',
-        'phone',
-        'email',
-        'position',
-        'boss',
+        'Jméno' => 'name',
+        'Příjmení' => 'surname',
+        'Pohlaví' => 'sex',
+        'Ulice' => 'address',
+        'Obec' => 'city',
+        'PSČ' => 'zip',
+        'Telefon' => 'phone',
+        'E-mail' => 'email',
+        'Pozice' => 'position',
+        'Nadřízený' => 'boss',
     );
 
 
@@ -74,12 +74,7 @@
             $errors[ 'surname' ][] = 'Příjmení je povinné';
         }
 
-        if ( empty( $data[ 'sex' ] ) )
-        {
-            $errors[ 'sex' ][] = 'Pohlaví je povinné';
-        }
-
-        if ( $data[ 'sex' ] != 'M' && $data[ 'sex' ] != 'Ž' )
+        if ( $data['sex'] != "" && $data[ 'sex' ] != 'M' && $data[ 'sex' ] != 'Ž' )
         {
             $errors[ 'sex' ][] = 'Pohlaví musí být M nebo Ž';
         }
@@ -119,11 +114,6 @@
             $errors[ 'email' ][] = 'E-mail musí být ve správném formátu';
         }
 
-        if ( empty( $data[ 'position' ] ) )
-        {
-            $errors[ 'position' ][] = 'Pozice je povinná';
-        }
-
         if ( isset( $data [ 'position' ] ) && $data[ 'position' ] === "dělník" && ( !isset( $data[ 'boss' ] ) || $data[ 'boss' ] === "" ) )
         {
             $errors[ 'boss' ][] = 'Dělník musí mít nadřízeného';
@@ -136,6 +126,8 @@
 
         return $errors;
     }
+
+
 
     $isValidTargetSet = isset( $_GET[ 'id' ] ) && is_numeric( $_GET[ 'id' ] ) && array_key_exists( intval( $_GET[ 'id' ] ), $employees->getEmployees() );
 
@@ -217,6 +209,11 @@
 
         }
     }
+
+    if ( $_GET && isset( $_GET[ 'sort' ] ) && in_array( $_GET[ 'sort' ], TABLE_COLUMN_IDS ) )
+    {
+        $employees->sortByHeading( array_search( $_GET[ 'sort' ], TABLE_COLUMN_IDS ) );
+    }
 ?>
 <html lang="cs">
 <head>
@@ -225,7 +222,7 @@
 <body>
 <div style="display:flex;flex-direction: column;align-items: center">
 
-    <h1><?php echo $isValidTargetSet ? "Úprava" : "Vytvoření nového"?> uživatele</h1>
+    <h1><?php echo $isValidTargetSet ? "Úprava" : "Vytvoření nového" ?> uživatele</h1>
 
     <form action="index.php" method="post" style="display: flex;flex-direction: column; max-width: 500px; gap: 20px">
         <input type="hidden" name="id" value="<?php if ( isset( $_REQUEST[ 'id' ] ) ) echo $_REQUEST[ 'id' ]; ?>">
@@ -251,7 +248,11 @@
 
         <div style="display: flex;flex-direction: column; gap: 5px">
             <label for="sex">Pohlaví</label>
-            <input type="text" name="sex" id="sex" value="<?php if ( isset( $_REQUEST[ 'sex' ] ) ) echo $_REQUEST[ 'sex' ]; ?>" required>
+            <select name="sex" id="sex">
+                <option value=""></option>
+                <option value="M" <?php if ( isset( $_REQUEST['sex']) && $_REQUEST['sex'] == "M" ) echo 'selected' ?>>Muž</option>
+                <option value="Ž" <?php if ( isset( $_REQUEST['sex']) && $_REQUEST['sex'] == "Ž" ) echo 'selected' ?>>Žena</option>
+            </select>
             <?php if ( !empty( $errors[ 'sex' ] ) )
                 foreach ( $errors[ 'sex' ] as $error )
                 {
@@ -343,10 +344,26 @@
 
         <input type="submit" value="<?php echo $isValidTargetSet ? "Upravit" : "Přidat" ?>">
 
-        <?php if ($isValidTargetSet) echo '<a href="?" style="text-align: center">Zrušit</a>'?>
+        <?php if ( $isValidTargetSet ) echo '<a href="?" style="text-align: center">Zrušit</a>' ?>
     </form>
 
     <h1>Adresář</h1>
+    <form>
+        <label for="sort">Řadit podle</label>
+        <select name="sort" id="sort">
+            <option value=""></option>
+            <?php foreach ( TABLE_COLUMN_IDS as $key => $value )
+            {
+                echo '<option value="' . $value . '"';
+                if ( isset( $_GET[ 'sort' ] ) && $_GET[ 'sort' ] == $value )
+                {
+                    echo ' selected';
+                }
+                echo '>' . $key . '</option>';
+            } ?>
+
+            <input type="submit" value="Seřadit">
+    </form>
     <table>
         <tr>
             <?php
