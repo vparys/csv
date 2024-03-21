@@ -286,7 +286,7 @@
 
 
 
-        public function getAllDetails(): array
+        public function toArray(): array
         {
             return [
                 'name' => $this->getName(),

@@ -7,6 +7,9 @@
         /** @var array|Employee[] */
         private array $employees;
 
+        /** @var array */
+        private array $headings;
+
 
 
         public function __construct()
@@ -37,6 +40,27 @@
 
 
         /**
+         * @return array
+         */
+        public function getHeadings(): array
+        {
+            return $this->headings;
+        }
+
+
+
+        /**
+         * @param array $headings
+         * @return void
+         */
+        public function setHeadings( array $headings ): void
+        {
+            $this->headings = $headings;
+        }
+
+
+
+        /**
          * @param Employee $employee
          * @return void
          */
@@ -61,6 +85,9 @@
 
 
 
+        /**
+         * @return array
+         */
         public function getFullNames(): array
         {
             $names = [];
@@ -69,6 +96,17 @@
                 $names[] = $employee->getName() . ' ' . $employee->getSurname();
             }
             return $names;
+        }
+
+        public function getFullTableInArrayForm(): array
+        {
+            $table = [];
+            $table[] = $this->getHeadings();
+            foreach ( $this->getEmployees() as $employee )
+            {
+                $table[] = $employee->toArray();
+            }
+            return $table;
         }
 
     }

@@ -28,6 +28,8 @@
     $i = 0;
     $employees = new Employees();
 
+    $employees->setHeadings( $headings );
+
     foreach ( $rows as $row )
     {
         $columns = str_getcsv( $row, ';' );
@@ -46,9 +48,7 @@
 
     $names = $employees->getFullNames();
 
-    //var_dump( $employees->getEmployees() );
-
-    function trimWhiteSpaces( $data )
+    function trimWhiteSpaces( $data ): array
     {
         $formData = [];
         foreach ( $data as $key => $value )
@@ -60,7 +60,7 @@
 
 
 
-    function validate( $data, $names )
+    function validate( $data, $names ): array
     {
         $errors = [];
 
@@ -124,7 +124,8 @@
             $errors[ 'position' ][] = 'Pozice je povinná';
         }
 
-        if ( isset($data ['position']) && $data['position'] === "dělník" && (!isset($data['boss']) || $data['boss'] === "" )) {
+        if ( isset( $data [ 'position' ] ) && $data[ 'position' ] === "dělník" && ( !isset( $data[ 'boss' ] ) || $data[ 'boss' ] === "" ) )
+        {
             $errors[ 'boss' ][] = 'Dělník musí mít nadřízeného';
         }
 
@@ -136,7 +137,7 @@
         return $errors;
     }
 
-
+    $isValidTargetSet = isset( $_GET[ 'id' ] ) && is_numeric( $_GET[ 'id' ] ) && array_key_exists( intval( $_GET[ 'id' ] ), $employees->getEmployees() );
 
     if ( $_POST )
     {
@@ -146,173 +147,224 @@
 
         if ( empty( $errors ) )
         {
-            $file = fopen( "adresar.csv", "a" );
-            $row = array();
 
-            foreach ( TABLE_COLUMN_IDS as $id )
+            if ( !isset( $data[ 'id' ] ) || $data[ 'id' ] === "" )
             {
-                $row[] = $_POST[ $id ];
-            }
+                $file = fopen( "adresar.csv", "a" );
+                $row = array();
 
-            fputcsv( $file, $row, ";" );
-            fclose( $file );
-            header( "Location: index.php" );
+                foreach ( TABLE_COLUMN_IDS as $id )
+                {
+                    $row[] = $_POST[ $id ];
+                }
+
+                fputcsv( $file, $row, ";" );
+                fclose( $file );
+                header( "Location: index.php" );
+            }
+            elseif ( is_numeric( $data[ 'id' ] ) && array_key_exists( intval( $data[ 'id' ] ), $employees->getEmployees() ) )
+            {
+                $employee = $employees->getEmployees()[ intval( $data[ 'id' ] ) ];
+                $employee->setName( $data[ 'name' ] );
+                $employee->setSurname( $data[ 'surname' ] );
+                $employee->setSex( $data[ 'sex' ] );
+                $employee->setAddress( $data[ 'address' ] );
+                $employee->setCity( $data[ 'city' ] );
+                $employee->setZip( $data[ 'zip' ] );
+                $employee->setPhone( $data[ 'phone' ] );
+                $employee->setEmail( $data[ 'email' ] );
+                $employee->setPosition( $data[ 'position' ] );
+                $employee->setBoss( $data[ 'boss' ] );
+
+                $file = fopen( "adresar.csv", "w" );
+                $newRows = $employees->getFullTableInArrayForm();
+
+                foreach ( $newRows as $row )
+                {
+                    fputcsv( $file, $row, ";" );
+                }
+
+                fclose( $file );
+                header( "Location: index.php" );
+            }
         }
     }
 
-    if ( $_GET )
+    if ( $_GET && isset( $_GET[ 'action' ] ) && $isValidTargetSet )
     {
-        if ( isset( $_GET[ 'action' ] ) && $_GET[ 'action' ] == 'load' && isset( $_GET[ 'id' ] ) && is_numeric( $_GET[ 'id' ] ) && array_key_exists( intval( $_GET[ 'id' ] ), $employees->getEmployees() ) )
+        if ( $_GET[ 'action' ] == 'load' )
         {
-            var_dump( $employees->getEmployees()[ intval( $_GET[ 'id' ] ) ] );
-            $employeeData = $employees->getEmployees()[ intval( $_GET[ 'id' ] ) ]->getAllDetails();
+            $employeeData = $employees->getEmployees()[ intval( $_GET[ 'id' ] ) ]->toArray();
             foreach ( $employeeData as $key => $value )
             {
                 $_REQUEST[ $key ] = $value;
             }
             $_REQUEST[ 'id' ] = $_GET[ 'id' ];
         }
+        elseif ( $_GET[ 'action' ] == "delete" )
+        {
+            $employees->removeEmployee( intval( $_GET[ 'id' ] ) );
+            $file = fopen( "adresar.csv", "w" );
+            $newRows = $employees->getFullTableInArrayForm();
+
+            foreach ( $newRows as $row )
+            {
+                fputcsv( $file, $row, ";" );
+            }
+
+            fclose( $file );
+            header( "Location: index.php" );
+
+        }
     }
 ?>
-<html>
+<html lang="cs">
 <head>
     <title>Adresář</title>
 </head>
 <body>
-<h1>Adresář</h1>
-<table>
-    <tr>
+<div style="display:flex;flex-direction: column;align-items: center">
+
+    <h1><?php echo $isValidTargetSet ? "Úprava" : "Vytvoření nového"?> uživatele</h1>
+
+    <form action="index.php" method="post" style="display: flex;flex-direction: column; max-width: 500px; gap: 20px">
+        <input type="hidden" name="id" value="<?php if ( isset( $_REQUEST[ 'id' ] ) ) echo $_REQUEST[ 'id' ]; ?>">
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="name">Jméno</label>
+            <input type="text" name="name" id="name" value="<?php if ( isset( $_REQUEST[ 'name' ] ) ) echo $_REQUEST[ 'name' ]; ?>" required>
+            <?php if ( !empty( $errors[ 'name' ] ) )
+                foreach ( $errors[ 'name' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="surname">Příjmení</label>
+            <input type="text" name="surname" id="surname" value="<?php if ( isset( $_REQUEST[ 'surname' ] ) ) echo $_REQUEST[ 'surname' ]; ?>" required>
+            <?php if ( !empty( $errors[ 'surname' ] ) )
+                foreach ( $errors[ 'surname' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="sex">Pohlaví</label>
+            <input type="text" name="sex" id="sex" value="<?php if ( isset( $_REQUEST[ 'sex' ] ) ) echo $_REQUEST[ 'sex' ]; ?>" required>
+            <?php if ( !empty( $errors[ 'sex' ] ) )
+                foreach ( $errors[ 'sex' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="address">Ulice</label>
+            <input type="text" name="address" id="address" value="<?php if ( isset( $_REQUEST[ 'address' ] ) ) echo $_REQUEST[ 'address' ]; ?>">
+            <?php if ( !empty( $errors[ 'address' ] ) )
+                foreach ( $errors[ 'address' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="city">Obec</label>
+            <input type="text" name="city" id="city" value="<?php if ( isset( $_REQUEST[ 'city' ] ) ) echo $_REQUEST[ 'city' ]; ?>" required>
+            <?php if ( !empty( $errors[ 'city' ] ) )
+                foreach ( $errors[ 'city' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="zip">PSČ</label>
+            <input type="text" name="zip" id="zip" value="<?php if ( isset( $_REQUEST[ 'zip' ] ) ) echo $_REQUEST[ 'zip' ]; ?>" required>
+            <?php if ( !empty( $errors[ 'zip' ] ) )
+                foreach ( $errors[ 'zip' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="phone">Telefon</label>
+            <input type="text" name="phone" id="phone" value="<?php if ( isset( $_REQUEST[ 'phone' ] ) ) echo $_REQUEST[ 'phone' ]; ?>">
+            <?php if ( !empty( $errors[ 'phone' ] ) )
+                foreach ( $errors[ 'phone' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="email">E-mail</label>
+            <input type="text" name="email" id="email" value="<?php if ( isset( $_REQUEST[ 'email' ] ) ) echo $_REQUEST[ 'email' ]; ?>">
+            <?php if ( !empty( $errors[ 'email' ] ) )
+                foreach ( $errors[ 'email' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="position">Pozice</label>
+            <input type="text" name="position" id="position" value="<?php if ( isset( $_REQUEST[ 'position' ] ) ) echo $_REQUEST[ 'position' ]; ?>">
+            <?php if ( !empty( $errors[ 'position' ] ) )
+                foreach ( $errors[ 'position' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+        <div style="display: flex;flex-direction: column; gap: 5px">
+            <label for="boss">Nadřízený</label>
+            <select name="boss" id="boss">
+                <option value=""></option>
+                <?php foreach ( $names as $name )
+                {
+                    echo '<option value="' . $name . '"';
+                    if ( isset( $_REQUEST[ 'boss' ] ) && $_REQUEST[ 'boss' ] == $name )
+                    {
+                        echo ' selected';
+                    }
+                    echo '>' . $name . '</option>';
+                } ?>
+            </select>
+            <?php if ( !empty( $errors[ 'boss' ] ) )
+                foreach ( $errors[ 'boss' ] as $error )
+                {
+                    echo '<div style="color: red">' . $error . '</div>';
+                } ?>
+        </div>
+
+
+        <input type="submit" value="<?php echo $isValidTargetSet ? "Upravit" : "Přidat" ?>">
+
+        <?php if ($isValidTargetSet) echo '<a href="?" style="text-align: center">Zrušit</a>'?>
+    </form>
+
+    <h1>Adresář</h1>
+    <table>
+        <tr>
+            <?php
+                foreach ( $headings as $column )
+                {
+                    echo '<th>' . $column . '</th>';
+                }
+            ?>
+
+            <th colspan="2">Actions</th>
+        </tr>
         <?php
-            foreach ( $headings as $column )
+            foreach ( $employees->getEmployees() as $employee )
             {
-                echo '<th>' . $column . '</th>';
+                echo '<tr><td>' . $employee->getName() . '</td><td>' . $employee->getSurname() . '</td><td>' . $employee->getSex() . '</td><td>' . $employee->getAddress() . '</td><td>' . $employee->getCity() . '</td><td>' . $employee->getZip() . '</td><td>' . $employee->getPhone() . '</td><td>' . $employee->getEmail() . '</td><td>' . $employee->getPosition() . '</td><td>' . $employee->getBoss() . '</td><td><a href="?action=load&id=' . $employee->getRowId() . '">Upravit</a> <a href="?action=delete&id=' . $employee->getRowId() . '">Smazat</a></td></tr>';
             }
         ?>
-
-        <th colspan="2">Actions</th>
-    </tr>
-    <?php
-        foreach ( $employees->getEmployees() as $employee )
-        {
-            echo '<tr><td>' . $employee->getName() . '</td><td>' . $employee->getSurname() . '</td><td>' . $employee->getSex() . '</td><td>' . $employee->getAddress() . '</td><td>' . $employee->getCity() . '</td><td>' . $employee->getZip() . '</td><td>' . $employee->getPhone() . '</td><td>' . $employee->getEmail() . '</td><td>' . $employee->getPosition() . '</td><td>' . $employee->getBoss() . '</td></tr>';
-        }
-    ?>
-</table>
-<form action="index.php" method="post" style="display: flex;flex-direction: column; max-width: 500px; gap: 20px">
-    <input type="hidden" name="id" value="<?php if ( isset( $_REQUEST[ 'id' ] ) ) echo $_REQUEST[ 'id' ]; ?>">
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="name">Jméno</label>
-        <input type="text" name="name" value="<?php if ( isset( $_REQUEST[ 'name' ] ) ) echo $_REQUEST[ 'name' ]; ?>" required>
-        <?php if ( !empty( $errors[ 'name' ] ) )
-            foreach ( $errors[ 'name' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="surname">Příjmení</label>
-        <input type="text" name="surname" value="<?php if ( isset( $_REQUEST[ 'surname' ] ) ) echo $_REQUEST[ 'surname' ]; ?>" required>
-        <?php if ( !empty( $errors[ 'surname' ] ) )
-            foreach ( $errors[ 'surname' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="sex">Pohlaví</label>
-        <input type="text" name="sex" value="<?php if ( isset( $_REQUEST[ 'sex' ] ) ) echo $_REQUEST[ 'sex' ]; ?>" required>
-        <?php if ( !empty( $errors[ 'sex' ] ) )
-            foreach ( $errors[ 'sex' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="address">Ulice</label>
-        <input type="text" name="address" value="<?php if ( isset( $_REQUEST[ 'address' ] ) ) echo $_REQUEST[ 'address' ]; ?>">
-        <?php if ( !empty( $errors[ 'address' ] ) )
-            foreach ( $errors[ 'address' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="city">Obec</label>
-        <input type="text" name="city" value="<?php if ( isset( $_REQUEST[ 'city' ] ) ) echo $_REQUEST[ 'city' ]; ?>" required>
-        <?php if ( !empty( $errors[ 'city' ] ) )
-            foreach ( $errors[ 'city' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="zip">PSČ</label>
-        <input type="text" name="zip" value="<?php if ( isset( $_REQUEST[ 'zip' ] ) ) echo $_REQUEST[ 'zip' ]; ?>" required>
-        <?php if ( !empty( $errors[ 'zip' ] ) )
-            foreach ( $errors[ 'zip' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="phone">Telefon</label>
-        <input type="text" name="phone" value="<?php if ( isset( $_REQUEST[ 'phone' ] ) ) echo $_REQUEST[ 'phone' ]; ?>">
-        <?php if ( !empty( $errors[ 'phone' ] ) )
-            foreach ( $errors[ 'phone' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="email">E-mail</label>
-        <input type="text" name="email" value="<?php if ( isset( $_REQUEST[ 'email' ] ) ) echo $_REQUEST[ 'email' ]; ?>">
-        <?php if ( !empty( $errors[ 'email' ] ) )
-            foreach ( $errors[ 'email' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="position">Pozice</label>
-        <input type="text" name="position" value="<?php if ( isset( $_REQUEST[ 'position' ] ) ) echo $_REQUEST[ 'position' ]; ?>">
-        <?php if ( !empty( $errors[ 'position' ] ) )
-            foreach ( $errors[ 'position' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-    <div style="display: flex;flex-direction: column; gap: 5px">
-        <label for="boss">Nadřízený</label>
-        <select name="boss" value="<?php if ( isset( $_REQUEST[ 'boss' ] ) ) echo $_REQUEST[ 'boss' ]; ?>">
-            <option value=""></option>
-            <?php foreach ( $names as $name )
-            {
-                echo '<option value="' . $name . '"';
-                if ( isset( $_REQUEST[ 'boss' ] ) && $_REQUEST[ 'boss' ] == $name )
-                {
-                    echo ' selected';
-                }
-                echo '>' . $name . '</option>';
-            } ?>
-        </select>
-        <?php if ( !empty( $errors[ 'boss' ] ) )
-            foreach ( $errors[ 'boss' ] as $error )
-            {
-                echo '<div style="color: red">' . $error . '</div>';
-            } ?>
-    </div>
-
-
-    <input type="submit" value="Přidat">
-</form>
+    </table>
+</div>
 </body>
 </html>
